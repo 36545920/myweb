@@ -1,31 +1,77 @@
 <template>
   <div class="page">
     <div class="header">
-      <h2 class="page-title">👥 好友</h2>
-      <button @click="showAdd = true" class="btn-primary">➕ 添加好友</button>
+      <el-button type="primary" @click="showAdd = true">
+        <el-icon style="margin-right:4px"><Plus /></el-icon>
+        添加好友
+      </el-button>
     </div>
 
-    <div v-if="friends.length === 0" class="empty">暂无好友，搜索邮箱添加好友</div>
-    <div class="friend-list">
-      <div v-for="f in friends" :key="f.id" class="friend-card">
-        <span>{{ f.friendEmail }}</span>
-        <button @click="removeFriend(f)" class="btn-sm btn-danger">删除</button>
-      </div>
-    </div>
+    <!-- 好友列表表格 -->
+    <el-table
+      :data="friends"
+      style="width: 100%"
+      size="default"
+      empty-text="暂无好友，搜索邮箱添加好友"
+      v-loading="loading"
+    >
+      <el-table-column label="好友邮箱" min-width="300">
+        <template #default="{ row }">
+          <span class="friend-email">{{ row.friendEmail }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="120" align="center">
+        <template #default="{ row }">
+          <el-button
+            type="danger"
+            size="small"
+            text
+            @click="removeFriend(row)"
+          >
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <div v-if="showAdd" class="modal-overlay" @click.self="showAdd = false">
-      <div class="modal">
-        <h3>添加好友</h3>
-        <input v-model="searchQuery" @input="onSearch" placeholder="输入邮箱搜索" class="input" />
-        <div v-if="searchResults.length" class="results">
-          <div v-for="u in searchResults" :key="u.email" class="result-item">
-            <span>{{ u.email }}</span>
-            <button @click="addFriend(u.email)" class="btn-sm">添加</button>
-          </div>
+    <!-- 添加好友弹窗 -->
+    <el-dialog
+      v-model="showAdd"
+      title="添加好友"
+      width="420px"
+      :close-on-click-modal="true"
+      destroy-on-close
+    >
+      <el-input
+        v-model="searchQuery"
+        placeholder="输入邮箱搜索"
+        size="large"
+        clearable
+        @input="onSearch"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+      <div v-if="searchResults.length" class="search-results">
+        <div v-for="u in searchResults" :key="u.email" class="result-item">
+          <span class="result-email">{{ u.email }}</span>
+          <el-button
+            type="primary"
+            size="small"
+            @click="addFriend(u.email)"
+          >
+            添加
+          </el-button>
         </div>
-        <button @click="showAdd = false" class="btn-secondary" style="margin-top:8px">关闭</button>
       </div>
-    </div>
+      <div v-else-if="searchQuery && searched" class="search-empty">
+        未找到匹配用户
+      </div>
+      <template #footer>
+        <el-button @click="showAdd = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -33,68 +79,110 @@
 import { ref, onMounted } from 'vue'
 import { friendsApi } from '@/api/friends'
 import { usersApi } from '@/api/users'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const friends = ref<any[]>([])
+const loading = ref(false)
 const showAdd = ref(false)
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
+const searched = ref(false)
 let searchTimer: any = null
 
 onMounted(async () => {
-  try { const res: any = await friendsApi.list(); friends.value = res.data } catch {}
+  loading.value = true
+  try {
+    const res: any = await friendsApi.list()
+    friends.value = res.data
+  } catch {
+    /* ignore */
+  } finally {
+    loading.value = false
+  }
 })
 
 function onSearch() {
   clearTimeout(searchTimer)
+  searched.value = false
   searchTimer = setTimeout(async () => {
-    if (!searchQuery.value) { searchResults.value = []; return }
-    try { const res: any = await usersApi.search(searchQuery.value); searchResults.value = res.data } catch {}
+    if (!searchQuery.value) {
+      searchResults.value = []
+      return
+    }
+    try {
+      const res: any = await usersApi.search(searchQuery.value)
+      searchResults.value = res.data
+      searched.value = true
+    } catch {
+      searchResults.value = []
+      searched.value = true
+    }
   }, 300)
 }
 
 async function addFriend(email: string) {
   try {
     await friendsApi.add(email)
-    alert('好友请求已发送')
+    ElMessage.success('好友请求已发送')
     showAdd.value = false
-  } catch (e: any) { alert(e.message) }
+  } catch (e: any) {
+    ElMessage.error(e.message || '添加失败')
+  }
 }
 
 async function removeFriend(f: any) {
-  if (confirm('确定删除好友 ' + f.friendEmail + ' 吗？')) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除好友 ${f.friendEmail} 吗？`,
+      '确认删除',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
     await friendsApi.remove(f.friendEmail)
     friends.value = friends.value.filter(x => x.id !== f.id)
+    ElMessage.success('已删除')
+  } catch {
+    // 取消操作
   }
 }
 </script>
 
 <style scoped>
-.page { max-width: 700px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-title { font-size: 22px; color: #b87b3a; }
-.btn-primary {
-  padding: 10px 20px; background: #b87b3a; color: #fff; border: none;
-  border-radius: 8px; font-size: 14px; cursor: pointer; font-family: inherit;
+.page {
+  max-width: 680px;
 }
-.empty { text-align: center; padding: 60px 0; color: #8b7355; }
-.friend-list { display: flex; flex-direction: column; gap: 8px; }
-.friend-card {
-  display: flex; justify-content: space-between; align-items: center;
-  background: #fff; border: 1px solid #f0e6d3; border-radius: 10px; padding: 14px 18px;
+.header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 20px;
 }
-.btn-sm {
-  padding: 6px 12px; border: 1px solid #d4b896; background: #fff;
-  border-radius: 6px; cursor: pointer; font-size: 12px; color: #5a3a1a; font-family: inherit;
+.friend-email {
+  color: var(--text);
+  font-size: 14px;
 }
-.btn-danger { border-color: #e0c8c8; color: #c0392b; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { background: #fff; padding: 24px; border-radius: 12px; width: 400px; display: flex; flex-direction: column; gap: 10px; }
-.modal h3 { color: #b87b3a; }
-.input {
-  padding: 10px 14px; border: 1px solid #e8d5c0; border-radius: 6px; font-size: 14px;
-  background: #fefaf2; outline: none; font-family: inherit;
+.search-results {
+  margin-top: 12px;
+  max-height: 240px;
+  overflow-y: auto;
 }
-.results { max-height: 200px; overflow-y: auto; }
-.result-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0e6d3; font-size: 13px; }
-.btn-secondary { padding: 8px 16px; border: 1px solid #d4b896; background: #fff; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.result-item:last-child {
+  border-bottom: none;
+}
+.result-email {
+  font-size: 13px;
+  color: var(--text);
+}
+.search-empty {
+  margin-top: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
 </style>

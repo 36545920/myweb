@@ -1,54 +1,102 @@
 <template>
   <div class="page">
-    <h2 class="page-title">🔧 个人设置</h2>
-    <div class="form">
-      <label class="label">邮箱</label>
-      <input :value="auth.user?.email" disabled class="input" />
-      <label class="label">昵称</label>
-      <input v-model="nickname" class="input" />
-      <label class="label">新密码（留空不修改）</label>
-      <input v-model="newPassword" type="password" class="input" placeholder="新密码" />
-      <input v-model="oldPassword" type="password" class="input" placeholder="原密码（修改密码时必填）" />
-      <p v-if="msg" :class="msgType">{{ msg }}</p>
-      <button @click="save" class="btn-primary">保存</button>
-    </div>
+    <el-card class="profile-card">
+      <!-- 头像区域占位（Task 8 创建完整 AvatarUpload 组件） -->
+      <div class="avatar-section">
+        <el-avatar :size="80" class="profile-avatar">
+          {{ auth.user?.nickname?.[0] || 'U' }}
+        </el-avatar>
+        <p class="avatar-hint">头像上传功能即将上线</p>
+      </div>
+
+      <el-form :model="form" label-width="90px" class="profile-form">
+        <el-form-item label="邮箱">
+          <el-input :model-value="auth.user?.email" disabled size="large" />
+        </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="form.nickname" size="large" clearable />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="form.newPassword" type="password" placeholder="留空不修改" size="large" show-password />
+        </el-form-item>
+        <el-form-item label="原密码">
+          <el-input v-model="form.oldPassword" type="password" placeholder="修改密码时必填" size="large" show-password />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="save" :loading="saving">保存</el-button>
+          <el-button @click="reset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { usersApi } from '@/api/users'
+import { ElMessage } from 'element-plus'
 
 const auth = useAuthStore()
-const nickname = ref(auth.user?.nickname || '')
-const newPassword = ref('')
-const oldPassword = ref('')
-const msg = ref('')
-const msgType = ref('success')
+const form = reactive({
+  nickname: auth.user?.nickname || '',
+  newPassword: '',
+  oldPassword: ''
+})
+const saving = ref(false)
 
 async function save() {
+  saving.value = true
   try {
     const res: any = await usersApi.updateProfile({
-      nickname: nickname.value,
-      oldPassword: oldPassword.value || undefined,
-      newPassword: newPassword.value || undefined
+      nickname: form.nickname,
+      oldPassword: form.oldPassword || undefined,
+      newPassword: form.newPassword || undefined
     })
     auth.user = res.data
-    msg.value = '保存成功'; msgType.value = 'success'
-  } catch (e: any) { msg.value = e.message; msgType.value = 'error' }
+    ElMessage.success('保存成功')
+  } catch (e: any) {
+    ElMessage.error(e.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+function reset() {
+  form.nickname = auth.user?.nickname || ''
+  form.newPassword = ''
+  form.oldPassword = ''
 }
 </script>
 
 <style scoped>
-.page { max-width: 480px; }
-.page-title { font-size: 22px; color: #b87b3a; margin-bottom: 20px; }
-.form { display: flex; flex-direction: column; gap: 8px; }
-.label { font-size: 13px; color: #8b7355; margin-top: 8px; }
-.input { padding: 12px 16px; border: 1px solid #e8d5c0; border-radius: 8px; font-size: 14px; background: #fefaf2; outline: none; font-family: inherit; }
-.input:focus { border-color: #b87b3a; }
-.input:disabled { opacity: 0.6; }
-.btn-primary { padding: 12px; background: #b87b3a; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-family: inherit; margin-top: 12px; }
-.success { color: #6b8e23; font-size: 13px; }
-.error { color: #c0392b; font-size: 13px; }
+.page {
+  display: flex;
+  justify-content: center;
+  padding-top: 40px;
+}
+.profile-card {
+  width: 100%;
+  max-width: 480px;
+}
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.profile-avatar {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 32px;
+  font-weight: 700;
+}
+.avatar-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.profile-form {
+  margin-top: 20px;
+}
 </style>
