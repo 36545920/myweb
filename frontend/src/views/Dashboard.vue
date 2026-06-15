@@ -1,21 +1,47 @@
 <template>
   <div class="page">
-    <h2 class="page-title">📊 仪表盘</h2>
+    <h2>仪表盘</h2>
+
     <div class="cards">
-      <div class="card">
-        <div class="card-title">👤 {{ auth.user?.nickname || '用户' }}</div>
-        <div class="card-role">{{ roleLabel }}</div>
+      <div class="card welcome-card">
+        <div class="welcome-avatar">{{ initial }}</div>
+        <div class="welcome-info">
+          <div class="welcome-name">{{ auth.user?.nickname || '用户' }}</div>
+          <div class="welcome-role">{{ roleLabel }}</div>
+        </div>
       </div>
-      <div class="card">
-        <div class="card-title">💾 存储空间</div>
-        <div class="bar-bg"><div class="bar" :style="{ width: usagePercent + '%' }"></div></div>
-        <div class="card-detail">{{ usedStr }} / {{ quotaStr }}</div>
+
+      <div class="card storage-card">
+        <div class="storage-header">
+          <span class="storage-label">存储空间</span>
+          <span class="storage-value">{{ usedStr }} / {{ quotaStr }}</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" :style="{ width: usagePercent + '%' }"></div>
+        </div>
       </div>
     </div>
-    <div class="actions">
-      <router-link to="/files/upload" class="btn-primary">📤 上传文件</router-link>
-      <router-link to="/inbox" class="btn-secondary">📥 查看收件箱</router-link>
-      <router-link to="/pool" class="btn-secondary">📦 浏览共享池</router-link>
+
+    <div class="quick-actions">
+      <h3>快捷操作</h3>
+      <div class="action-grid">
+        <router-link to="/files/upload" class="action-card">
+          <span class="action-icon">📤</span>
+          <span class="action-text">上传文件</span>
+        </router-link>
+        <router-link to="/inbox" class="action-card">
+          <span class="action-icon">📥</span>
+          <span class="action-text">收件箱</span>
+        </router-link>
+        <router-link to="/pool" class="action-card">
+          <span class="action-icon">📦</span>
+          <span class="action-text">共享池</span>
+        </router-link>
+        <router-link to="/friends" class="action-card">
+          <span class="action-icon">👥</span>
+          <span class="action-text">好友</span>
+        </router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -27,14 +53,15 @@ import { usersApi } from '@/api/users'
 import { formatFileSize } from '@/utils/format'
 
 const auth = useAuthStore()
+const initial = computed(() => (auth.user?.nickname || 'U')[0])
 const used = computed(() => auth.user?.storageUsed || 0)
-const quota = computed(() => auth.user?.storageQuota || 0)
+const quota = computed(() => auth.user?.storageQuota || 1)
 const usedStr = computed(() => formatFileSize(used.value))
 const quotaStr = computed(() => formatFileSize(quota.value))
-const usagePercent = computed(() => quota.value > 0 ? Math.min(100, (used.value / quota.value) * 100) : 0)
+const usagePercent = computed(() => Math.min(100, (used.value / quota.value) * 100))
 const roleLabel = computed(() => {
   const map: Record<string, string> = { USER: '普通用户', ADMIN: '管理员', SUPER_ADMIN: '超级管理员' }
-  return map[auth.user?.role] || '用户'
+  return map[auth.user?.role] || ''
 })
 
 onMounted(async () => {
@@ -43,25 +70,41 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 800px; }
-.page-title { font-size: 22px; color: #b87b3a; margin-bottom: 20px; }
-.cards { display: flex; gap: 16px; margin-bottom: 24px; }
-.card {
-  flex: 1; background: #fff; border: 1px solid #f0e6d3;
-  border-radius: 12px; padding: 20px;
+.page { max-width: 720px; }
+
+.cards { display: flex; gap: 16px; margin-bottom: 32px; }
+
+.welcome-card {
+  display: flex; align-items: center; gap: 16px; padding: 24px;
 }
-.card-title { font-size: 15px; color: #3d2b1f; margin-bottom: 8px; }
-.card-role { color: #b87b3a; font-size: 13px; }
-.card-detail { font-size: 13px; color: #8b7355; margin-top: 6px; }
-.bar-bg { height: 8px; background: #f0e6d3; border-radius: 4px; margin: 8px 0; }
-.bar { height: 8px; background: #b87b3a; border-radius: 4px; transition: width 0.5s; }
-.actions { display: flex; gap: 12px; }
-.btn-primary, .btn-secondary {
-  padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px;
-  display: inline-block; font-family: inherit;
+.welcome-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--primary-light); color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700; flex-shrink: 0;
 }
-.btn-primary { background: #b87b3a; color: #fff; }
-.btn-primary:hover { background: #9e672f; }
-.btn-secondary { background: #fff; color: #b87b3a; border: 1px solid #d4b896; }
-.btn-secondary:hover { background: #fefaf2; }
+.welcome-name { font-size: 16px; font-weight: 600; }
+.welcome-role { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+.storage-card { padding: 20px 24px; flex: 1.5; }
+.storage-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.storage-label { font-size: 14px; font-weight: 600; }
+.storage-value { font-size: 13px; color: var(--text-secondary); }
+.bar-track { height: 10px; background: var(--primary-light); border-radius: 5px; overflow: hidden; }
+.bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--primary), #d4a85c);
+  border-radius: 5px; transition: width 0.6s ease;
+}
+
+.quick-actions { margin-top: 8px; }
+.action-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.action-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 24px 16px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); text-decoration: none; cursor: pointer;
+  transition: all 0.15s; box-shadow: var(--shadow-sm);
+}
+.action-card:hover { border-color: var(--primary-light); background: var(--bg-card-hover); box-shadow: var(--shadow-md); }
+.action-icon { font-size: 28px; }
+.action-text { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
 </style>

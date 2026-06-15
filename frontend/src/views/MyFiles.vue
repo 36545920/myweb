@@ -5,6 +5,11 @@
       <router-link to="/files/upload" class="btn-primary">📤 上传</router-link>
     </div>
 
+    <div class="capacity-bar">
+      <div class="capacity-fill" :style="{ width: usagePercent + '%' }"></div>
+      <span class="capacity-text">个人空间：{{ formatFileSize(used) }} / {{ formatFileSize(quota) }}</span>
+    </div>
+
     <div v-if="files.length === 0" class="empty">暂无文件，点击上传开始使用</div>
 
     <div class="file-list">
@@ -47,10 +52,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { filesApi } from '@/api/files'
 import { transfersApi } from '@/api/transfers'
 import { formatFileSize, formatDate } from '@/utils/format'
+
+const auth = useAuthStore()
+const used = computed(() => auth.user?.storageUsed || 0)
+const quota = computed(() => auth.user?.storageQuota || 1)
+const usagePercent = computed(() => Math.min(100, (used.value / quota.value) * 100))
 
 const files = ref<any[]>([])
 const page = ref(1)
@@ -100,6 +111,12 @@ onMounted(loadFiles)
   padding: 10px 20px; background: #b87b3a; color: #fff; border: none;
   border-radius: 8px; font-size: 14px; cursor: pointer; text-decoration: none; font-family: inherit;
 }
+.capacity-bar {
+  position: relative; height: 22px; background: #f0e6d3; border-radius: 11px;
+  margin-bottom: 14px; overflow: hidden;
+}
+.capacity-fill { height: 100%; background: #b87b3a; border-radius: 11px; transition: width 0.5s; }
+.capacity-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 12px; color: #3d2b1f; white-space: nowrap; }
 .empty { text-align: center; padding: 60px 0; color: #8b7355; font-size: 15px; }
 .file-list { display: flex; flex-direction: column; gap: 10px; }
 .file-card {
