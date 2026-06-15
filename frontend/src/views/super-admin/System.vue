@@ -1,6 +1,5 @@
 <template>
   <div class="page">
-    <h2 class="page-title">系统设置</h2>
     <div class="form">
       <div v-for="c in configs" :key="c.configKey" class="row">
         <label>{{ configLabel(c.configKey) }}</label>
@@ -65,8 +64,7 @@ async function saveAll() {
 </script>
 
 <style scoped>
-.page { max-width: 640px; }
-.page-title { font-size: 22px; color: #b87b3a; margin-bottom: 20px; }
+.page { }
 .form { display: flex; flex-direction: column; gap: 12px; }
 .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
 .row label { color: #5a3a1a; flex: 1; }

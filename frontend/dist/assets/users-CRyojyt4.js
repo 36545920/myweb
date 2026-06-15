@@ -1,0 +1,1 @@
+import{c as r}from"./client-wE0PFglW.js";const a={getProfile:()=>r.get("/users/me"),updateProfile:e=>r.put("/users/me",e),search:e=>r.get("/users/search",{params:{email:e}}),uploadAvatar:e=>r.post("/users/me/avatar",e,{headers:{"Content-Type":"multipart/form-data"}})};export{a as u};
