@@ -11,4 +11,5 @@ export const adminApi = {
   reviewList: (page = 1, size = 20) => client.get('/admin/review', { params: { page, size } }),
   reviewFile: (id: number, approved: boolean, comment: string) =>
     client.put(`/admin/review/${id}`, { approved, comment }),
+  resetPassword: (email: string) => client.post(`/admin/users/${email}/reset-password`),
 }

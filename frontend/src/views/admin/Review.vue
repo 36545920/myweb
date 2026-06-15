@@ -1,59 +1,119 @@
 <template>
   <div class="page">
-    <h2 class="page-title">✅ 共享池审核</h2>
-    <div v-if="files.length === 0" class="empty">暂无待审核文件</div>
-    <div v-for="f in files" :key="f.id" class="card">
-      <div class="info">
-        <div class="title">{{ f.title }}</div>
-        <div class="meta">上传者：{{ f.ownerEmail }} · {{ formatFileSize(f.fileSize) }} · {{ f.originalName }}</div>
-        <div class="desc" v-if="f.description">{{ f.description }}</div>
-      </div>
-      <div class="actions">
-        <input v-if="rejectId === f.id" v-model="rejectComment" placeholder="拒绝原因" class="input" />
-        <button v-if="rejectId === f.id" @click="doReview(f.id, false)" class="btn-sm btn-danger">确认拒绝</button>
-        <button v-if="rejectId !== f.id" @click="doReview(f.id, true)" class="btn-sm btn-approve">通过</button>
-        <button v-if="rejectId !== f.id" @click="rejectId = f.id" class="btn-sm btn-danger">拒绝</button>
-      </div>
-    </div>
+    <div v-if="!loading && files.length === 0" class="empty">暂无待审核文件</div>
+
+    <el-table
+      v-else
+      :data="files"
+      stripe
+      style="width: 100%"
+      v-loading="loading"
+    >
+      <el-table-column prop="title" label="标题" min-width="180" />
+      <el-table-column prop="ownerEmail" label="上传者" width="180" />
+      <el-table-column label="大小" width="100">
+        <template #default="{ row }">
+          {{ formatFileSize(row.fileSize) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="120">
+        <template #default="{ row }">
+          <el-tag v-if="row.status === 'APPROVED'" type="success">已通过</el-tag>
+          <el-tag v-else-if="row.status === 'REJECTED'" type="danger">已拒绝</el-tag>
+          <el-tag v-else type="warning">待审核</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="{ row }">
+          <template v-if="row.status === 'PENDING' || !row.status">
+            <el-button type="success" size="small" @click="doApprove(row)">通过</el-button>
+            <el-button type="danger" size="small" @click="doReject(row)">拒绝</el-button>
+          </template>
+          <template v-else>
+            <span style="color: #bbb; font-size: 12px">已处理</span>
+          </template>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-if="total > pageSize"
+      v-model:current-page="currentPage"
+      :page-size="pageSize"
+      :total="total"
+      layout="total, prev, pager, next"
+      @current-change="fetchFiles"
+      style="margin-top: 16px; justify-content: center"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminApi } from '@/api/admin'
 import { formatFileSize } from '@/utils/format'
 
 const files = ref<any[]>([])
-const rejectId = ref<number | null>(null)
-const rejectComment = ref('')
+const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
-onMounted(async () => {
-  try { const res: any = await adminApi.reviewList(); files.value = res.data.records } catch {}
+onMounted(() => {
+  fetchFiles()
 })
 
-async function doReview(id: number, approved: boolean) {
-  await adminApi.reviewFile(id, approved, approved ? '' : rejectComment.value)
-  rejectId.value = null
-  rejectComment.value = ''
-  files.value = files.value.filter(f => f.id !== id)
+async function fetchFiles() {
+  loading.value = true
+  try {
+    const res: any = await adminApi.reviewList(currentPage.value, pageSize.value)
+    files.value = res.data.records ?? res.data ?? []
+    total.value = res.data.total ?? 0
+  } catch {
+    ElMessage.error('获取审核列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function doApprove(row: any) {
+  try {
+    await ElMessageBox.confirm(`确定要通过文件「${row.title}」的审核吗？`, '确认通过', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info',
+    })
+    await adminApi.reviewFile(row.id, true, '')
+    files.value = files.value.filter(f => f.id !== row.id)
+    total.value--
+    ElMessage.success('审核通过')
+  } catch {
+    // 用户取消
+  }
+}
+
+async function doReject(row: any) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝审核', {
+      confirmButtonText: '确认拒绝',
+      cancelButtonText: '取消',
+      inputPlaceholder: '拒绝原因',
+      inputType: 'textarea',
+    })
+    if (value !== null) {
+      await adminApi.reviewFile(row.id, false, value || '')
+      files.value = files.value.filter(f => f.id !== row.id)
+      total.value--
+      ElMessage.success('已拒绝该文件')
+    }
+  } catch {
+    // 用户取消或关闭
+  }
 }
 </script>
 
 <style scoped>
-.page { max-width: 800px; }
-.page-title { font-size: 22px; color: #b87b3a; margin-bottom: 20px; }
+.page { }
 .empty { text-align: center; padding: 60px 0; color: #8b7355; }
-.card {
-  display: flex; justify-content: space-between; align-items: center; gap: 16px;
-  background: #fff; border: 1px solid #f0e6d3; border-radius: 10px; padding: 16px 20px; margin-bottom: 8px;
-}
-.info { flex: 1; }
-.title { font-size: 15px; color: #3d2b1f; font-weight: 600; }
-.meta { font-size: 12px; color: #aaa; margin-top: 2px; }
-.desc { font-size: 13px; color: #8b7355; margin-top: 4px; }
-.actions { display: flex; gap: 6px; align-items: center; }
-.input { padding: 6px 10px; border: 1px solid #e8d5c0; border-radius: 4px; font-size: 12px; background: #fefaf2; outline: none; font-family: inherit; width: 140px; }
-.btn-sm { padding: 6px 12px; border: 1px solid #d4b896; background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; font-family: inherit; }
-.btn-approve { border-color: #c0d4b8; color: #6b8e23; }
-.btn-danger { border-color: #e0c8c8; color: #c0392b; }
 </style>

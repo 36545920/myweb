@@ -1,76 +1,175 @@
 <template>
   <div class="page">
-    <h2 class="page-title">👤 用户管理</h2>
-    <table class="table">
-      <thead><tr><th>邮箱</th><th>昵称</th><th>角色</th><th>配额</th><th>已用</th><th>状态</th><th>操作</th></tr></thead>
-      <tbody>
-        <tr v-for="u in users" :key="u.email">
-          <td>{{ u.email }}</td><td>{{ u.nickname }}</td><td>{{ u.role }}</td>
-          <td>{{ formatFileSize(u.storageQuota) }}</td>
-          <td>{{ formatFileSize(u.storageUsed) }}</td>
-          <td>{{ u.status }}</td>
-          <td class="ops">
-            <button @click="openQuota(u)" class="btn-xs">配额</button>
-            <button v-if="u.role !== 'SUPER_ADMIN'" @click="toggleStatus(u)" class="btn-xs">
-              {{ u.status === 'ACTIVE' ? '禁用' : '启用' }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <el-table
+      :data="users"
+      stripe
+      style="width: 100%"
+      v-loading="loading"
+    >
+      <el-table-column prop="email" label="邮箱" min-width="200" />
+      <el-table-column prop="nickname" label="昵称" width="120" />
+      <el-table-column label="角色" width="130">
+        <template #default="{ row }">
+          <el-tag v-if="row.role === 'SUPER_ADMIN'" type="danger">超级管理员</el-tag>
+          <el-tag v-else-if="row.role === 'ADMIN'" type="warning">管理员</el-tag>
+          <el-tag v-else type="info">用户</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="配额" width="100">
+        <template #default="{ row }">
+          {{ formatFileSize(row.storageQuota) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="已用" width="100">
+        <template #default="{ row }">
+          {{ formatFileSize(row.storageUsed) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag v-if="row.status === 'ACTIVE'" type="success">正常</el-tag>
+          <el-tag v-else type="danger">已禁用</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" min-width="260" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" @click="openQuota(row)">配额</el-button>
+          <el-button
+            v-if="row.role !== 'SUPER_ADMIN'"
+            size="small"
+            :type="row.status === 'ACTIVE' ? 'warning' : 'success'"
+            @click="toggleStatus(row)"
+          >
+            {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
+          </el-button>
+          <el-button size="small" type="danger" @click="resetPassword(row)">重置密码</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-    <div v-if="quotaUser" class="modal-overlay" @click.self="quotaUser = null">
-      <div class="modal">
-        <h3>调整配额 — {{ quotaUser.email }}</h3>
-        <input v-model.number="quotaGb" type="number" placeholder="GB" class="input" />
-        <div class="modal-btns">
-          <button @click="quotaUser = null" class="btn-secondary">取消</button>
-          <button @click="saveQuota" class="btn-primary">保存</button>
-        </div>
-      </div>
-    </div>
+    <el-pagination
+      v-if="total > pageSize"
+      v-model:current-page="currentPage"
+      :page-size="pageSize"
+      :total="total"
+      layout="total, prev, pager, next"
+      @current-change="fetchUsers"
+      style="margin-top: 16px; justify-content: center"
+    />
+
+    <!-- 配额修改弹窗 -->
+    <el-dialog
+      v-model="quotaDialogVisible"
+      title="调整配额"
+      width="400px"
+    >
+      <el-form>
+        <el-form-item label="用户">
+          <span>{{ quotaUser?.email }}</span>
+        </el-form-item>
+        <el-form-item label="配额 (GB)">
+          <el-input-number
+            v-model="quotaGb"
+            :min="1"
+            :max="10240"
+            :step="1"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="quotaDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveQuota">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { adminApi } from '@/api/admin'
 import { formatFileSize } from '@/utils/format'
 
 const users = ref<any[]>([])
+const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+const quotaDialogVisible = ref(false)
 const quotaUser = ref<any>(null)
 const quotaGb = ref(10)
 
-onMounted(async () => {
-  try { const res: any = await adminApi.listUsers(); users.value = res.data.records } catch {}
+onMounted(() => {
+  fetchUsers()
 })
 
-function openQuota(u: any) { quotaUser.value = u; quotaGb.value = Math.round(u.storageQuota / 1073741824) }
-async function saveQuota() {
-  await adminApi.updateQuota(quotaUser.value.email, quotaGb.value * 1073741824)
-  quotaUser.value = null
-  const res: any = await adminApi.listUsers(); users.value = res.data.records
+async function fetchUsers() {
+  loading.value = true
+  try {
+    const res: any = await adminApi.listUsers(currentPage.value, pageSize.value)
+    users.value = res.data.records ?? res.data ?? []
+    total.value = res.data.total ?? 0
+  } catch {
+    ElMessage.error('获取用户列表失败')
+  } finally {
+    loading.value = false
+  }
 }
+
+function openQuota(u: any) {
+  quotaUser.value = u
+  quotaGb.value = Math.round(u.storageQuota / 1073741824)
+  quotaDialogVisible.value = true
+}
+
+async function saveQuota() {
+  try {
+    await adminApi.updateQuota(quotaUser.value.email, quotaGb.value * 1073741824)
+    quotaDialogVisible.value = false
+    ElMessage.success('配额修改成功')
+    await fetchUsers()
+  } catch {
+    ElMessage.error('配额修改失败')
+  }
+}
+
 async function toggleStatus(u: any) {
   const newStatus = u.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
-  await adminApi.updateStatus(u.email, newStatus)
-  const res: any = await adminApi.listUsers(); users.value = res.data.records
+  const actionLabel = newStatus === 'ACTIVE' ? '启用' : '禁用'
+  try {
+    await ElMessageBox.confirm(`确定要${actionLabel}用户「${u.email}」吗？`, `确认${actionLabel}`, {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await adminApi.updateStatus(u.email, newStatus)
+    ElMessage.success(`${actionLabel}成功`)
+    await fetchUsers()
+  } catch {
+    // 用户取消
+  }
+}
+
+async function resetPassword(u: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要重置用户「${u.email}」的密码吗？重置后该用户需重新设置密码。`,
+      '确认重置密码',
+      {
+        confirmButtonText: '确定重置',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    await adminApi.resetPassword(u.email)
+    ElMessage.success('密码已重置')
+  } catch {
+    // 用户取消
+  }
 }
 </script>
 
 <style scoped>
-.page { max-width: 100%; overflow-x: auto; }
-.page-title { font-size: 22px; color: #b87b3a; margin-bottom: 20px; }
-.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th { text-align: left; padding: 10px 12px; background: #fefaf2; border-bottom: 2px solid #f0e6d3; color: #8b7355; }
-.table td { padding: 10px 12px; border-bottom: 1px solid #f0e6d3; }
-.ops { display: flex; gap: 4px; }
-.btn-xs { padding: 4px 8px; border: 1px solid #d4b896; background: #fff; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.modal { background: #fff; padding: 24px; border-radius: 12px; width: 360px; display: flex; flex-direction: column; gap: 12px; }
-.modal h3 { color: #b87b3a; }
-.input { padding: 10px; border: 1px solid #e8d5c0; border-radius: 6px; font-size: 14px; background: #fefaf2; outline: none; font-family: inherit; }
-.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
-.btn-primary { padding: 8px 16px; background: #b87b3a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; }
-.btn-secondary { padding: 8px 16px; border: 1px solid #d4b896; background: #fff; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.page { }
 </style>
