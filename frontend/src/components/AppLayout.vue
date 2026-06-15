@@ -2,6 +2,9 @@
   <div class="app-layout">
     <Sidebar />
     <main class="main-content">
+      <header class="top-header">
+        <span class="header-title">{{ pageTitle }}</span>
+      </header>
       <div class="content-inner">
         <router-view />
       </div>
@@ -10,7 +13,29 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
+
+const route = useRoute()
+
+const pageTitles: Record<string, string> = {
+  Dashboard: '仪表盘',
+  MyFiles: '我的文件',
+  Upload: '上传文件',
+  Inbox: '收件箱',
+  Pool: '文件共享池',
+  Friends: '好友',
+  Profile: '个人设置',
+  AdminReview: '文件审核',
+  AdminUsers: '用户管理',
+  SuperSystem: '系统设置',
+}
+
+const pageTitle = computed(() => {
+  const name = route.name as string
+  return pageTitles[name] || name || ''
+})
 </script>
 
 <style>
@@ -24,6 +49,21 @@ body {
   line-height: 1.6;
 }
 
+/* Element Plus 主题色覆盖 */
+:root {
+  --el-color-primary: #b87b3a;
+  --el-color-primary-light-3: #d4b896;
+  --el-color-primary-light-5: #e8d5c0;
+  --el-color-primary-light-7: #f0e6d3;
+  --el-color-primary-light-8: #f5ede0;
+  --el-color-primary-light-9: #fdf5ed;
+  --el-color-primary-dark-2: #9e672f;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 4px;
+  --el-font-family: 'PingFang SC', 'Noto Serif SC', 'Georgia', sans-serif;
+}
+
+/* 自定义 CSS 变量（与 Element Plus 共存） */
 :root {
   --primary: #b87b3a;
   --primary-hover: #9e672f;
@@ -56,32 +96,6 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 12px;
 }
 .card:hover { box-shadow: var(--shadow-md); }
 
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 18px; border-radius: var(--radius-sm);
-  font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
-  transition: all 0.15s; text-decoration: none; border: 1px solid var(--border);
-  background: var(--bg-card); color: var(--text-secondary);
-}
-.btn:hover { background: var(--primary-bg); border-color: var(--primary-light); color: var(--primary); }
-.btn-primary {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 20px; border-radius: var(--radius-sm); border: none;
-  font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer;
-  background: var(--primary); color: #fff; transition: all 0.15s; text-decoration: none;
-}
-.btn-primary:hover { background: var(--primary-hover); }
-.btn-danger { border-color: #e8c8c8; color: var(--danger); }
-.btn-danger:hover { background: var(--danger-bg); border-color: #e8c8c8; }
-
-.input {
-  padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 14px; font-family: inherit; background: var(--bg); color: var(--text);
-  outline: none; transition: border-color 0.15s; width: 100%;
-}
-.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(184,123,58,0.08); }
-.input:disabled { opacity: 0.5; background: #f5f5f5; }
-
 .empty-state { text-align: center; padding: 48px 0; color: var(--text-muted); font-size: 14px; }
 
 .bar {
@@ -100,6 +114,18 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 12px;
 
 <style scoped>
 .app-layout { display: flex; min-height: 100vh; }
-.main-content { flex: 1; overflow-y: auto; background: var(--bg); }
-.content-inner { max-width: 960px; padding: 32px 36px; }
+.main-content { flex: 1; overflow-y: auto; background: var(--bg); min-width: 0; display: flex; flex-direction: column; }
+
+.top-header {
+  display: flex; align-items: center;
+  padding: 0 40px; height: 52px; flex-shrink: 0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+.header-title {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.content-inner { padding: 28px 40px; flex: 1; width: 100%; }
 </style>
