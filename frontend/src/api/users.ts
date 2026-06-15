@@ -5,4 +5,7 @@ export const usersApi = {
   updateProfile: (data: { nickname?: string; avatar?: string; oldPassword?: string; newPassword?: string }) =>
     client.put('/users/me', data),
   search: (email: string) => client.get('/users/search', { params: { email } }),
+  uploadAvatar: (formData: FormData) => client.post('/users/me/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 }
