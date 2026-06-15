@@ -1,13 +1,7 @@
 <template>
   <div class="page">
     <el-card class="profile-card">
-      <!-- 头像区域占位（Task 8 创建完整 AvatarUpload 组件） -->
-      <div class="avatar-section">
-        <el-avatar :size="80" class="profile-avatar">
-          {{ auth.user?.nickname?.[0] || 'U' }}
-        </el-avatar>
-        <p class="avatar-hint">头像上传功能即将上线</p>
-      </div>
+      <AvatarUpload />
 
       <el-form :model="form" label-width="90px" class="profile-form">
         <el-form-item label="邮箱">
@@ -36,6 +30,7 @@ import { reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { usersApi } from '@/api/users'
 import { ElMessage } from 'element-plus'
+import AvatarUpload from '@/components/AvatarUpload.vue'
 
 const auth = useAuthStore()
 const form = reactive({
@@ -78,23 +73,6 @@ function reset() {
 .profile-card {
   width: 100%;
   max-width: 480px;
-}
-.avatar-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 8px;
-}
-.profile-avatar {
-  background: var(--primary-light);
-  color: var(--primary);
-  font-size: 32px;
-  font-weight: 700;
-}
-.avatar-hint {
-  font-size: 12px;
-  color: var(--text-muted);
 }
 .profile-form {
   margin-top: 20px;
