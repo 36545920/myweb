@@ -1,0 +1,1 @@
+function n(t){if(!t||t===0)return"0 B";const i=["B","KB","MB","GB","TB"],o=Math.floor(Math.log(t)/Math.log(1024));return(t/Math.pow(1024,o)).toFixed(o>0?1:0)+" "+i[o]}function r(t){return t?new Date(t).toLocaleDateString("zh-CN",{year:"numeric",month:"2-digit",day:"2-digit"}):"永久"}export{r as a,n as f};

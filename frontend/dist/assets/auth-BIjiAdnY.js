@@ -1,0 +1,1 @@
+import{c as t}from"./client-wE0PFglW.js";const r={sendCode:e=>t.post("/auth/send-code",{email:e}),register:(e,o)=>t.post(`/auth/register?code=${o}`,e),login:e=>t.post("/auth/login",e),refresh:e=>t.post("/auth/refresh",{refreshToken:e})};export{r as a};

@@ -1,0 +1,1 @@
+import{c as r}from"./client-wE0PFglW.js";const a={send:(s,e,t)=>r.post("/transfers",{fileId:s,toEmail:e,message:t}),inbox:(s=1,e=20)=>r.get("/transfers/inbox",{params:{page:s,size:e}}),sent:(s=1,e=20)=>r.get("/transfers/sent",{params:{page:s,size:e}}),remove:s=>r.delete(`/transfers/${s}`)};export{a as t};
