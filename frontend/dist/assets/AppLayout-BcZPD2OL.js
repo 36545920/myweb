@@ -1,0 +1,1 @@
+import{_ as a,c as n,a as o,b as r,r as s,o as c}from"./index-DMKFWlvP.js";const _={},l={class:"app-layout"};function p(i,e){const t=s("router-view");return c(),n("div",l,[e[0]||(e[0]=o("nav",null,"Sidebar",-1)),o("main",null,[r(t)])])}const d=a(_,[["render",p]]);export{d as default};
