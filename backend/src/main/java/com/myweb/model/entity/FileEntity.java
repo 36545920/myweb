@@ -25,4 +25,8 @@ public class FileEntity {
     private LocalDateTime expireAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private String fileType;
+    private LocalDateTime lastAccessAt;
+    private String lastAccessBy;
 }
