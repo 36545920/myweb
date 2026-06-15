@@ -94,6 +94,16 @@ public class UserService {
         userMapper.updateById(user);
     }
 
+    @Transactional
+    public String resetPassword(String email) {
+        User user = userMapper.selectById(email);
+        if (user == null) throw new RuntimeException("用户不存在");
+        String newPassword = java.util.UUID.randomUUID().toString().substring(0, 8);
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userMapper.updateById(user);
+        return newPassword;
+    }
+
     private UserVO toVO(User u, String rawEmail) {
         return UserVO.builder()
             .email(rawEmail).nickname(u.getNickname()).avatar(u.getAvatar())

@@ -44,6 +44,16 @@ public class AdminController {
         }
     }
 
+    @PutMapping("/admin/users/{email}/reset-password")
+    public ResponseEntity<?> resetPassword(@PathVariable String email) {
+        try {
+            String newPassword = userService.resetPassword(email);
+            return ResponseEntity.ok(Map.of("code", 0, "message", "密码已重置为: " + newPassword));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("code", 1005, "message", e.getMessage()));
+        }
+    }
+
     // === 共享池审核 ===
     @GetMapping("/pool")
     public ResponseEntity<?> listPool(@RequestParam(defaultValue = "1") int page,
