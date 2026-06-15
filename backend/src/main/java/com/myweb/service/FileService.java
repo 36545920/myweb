@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -74,6 +75,7 @@ public class FileService {
         file.setMimeType(mimeType);
         file.setStoragePath(storagePath.toString());
         file.setExpireAt(expireAt);
+        file.setFileType(detectFileType(mimeType));
         fileMapper.insert(file);
 
         user.setStorageUsed(newUsed);
@@ -90,6 +92,46 @@ public class FileService {
                 .eq(FileEntity::getOwnerEmail, email)
                 .orderByDesc(FileEntity::getCreatedAt)
         );
+    }
+
+    public Page<FileEntity> listMyFiles(int page, int size, String type, String sort, String order, String keyword) {
+        String email = currentUserEmail();
+        LambdaQueryWrapper<FileEntity> wrapper = new LambdaQueryWrapper<FileEntity>()
+            .eq(FileEntity::getOwnerEmail, email);
+
+        if (type != null && !type.isEmpty()) {
+            wrapper.eq(FileEntity::getFileType, type);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w
+                .like(FileEntity::getTitle, keyword)
+                .or()
+                .like(FileEntity::getOriginalName, keyword)
+                .or()
+                .like(FileEntity::getDescription, keyword));
+        }
+
+        boolean asc = "asc".equalsIgnoreCase(order);
+        if (sort != null) {
+            switch (sort) {
+                case "size":
+                    wrapper.orderBy(true, asc, FileEntity::getFileSize);
+                    break;
+                case "name":
+                    wrapper.orderBy(true, asc, FileEntity::getTitle);
+                    break;
+                case "type":
+                    wrapper.orderBy(true, asc, FileEntity::getFileType);
+                    break;
+                default:
+                    wrapper.orderByDesc(FileEntity::getCreatedAt);
+                    break;
+            }
+        } else {
+            wrapper.orderByDesc(FileEntity::getCreatedAt);
+        }
+
+        return fileMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
     public Page<FileEntity> listPoolFiles(int page, int size) {
@@ -112,8 +154,34 @@ public class FileService {
         );
     }
 
+    public Page<FileEntity> listRecent(int size) {
+        String email = currentUserEmail();
+        return fileMapper.selectPage(new Page<>(1, size),
+            new LambdaQueryWrapper<FileEntity>()
+                .eq(FileEntity::getLastAccessBy, email)
+                .orderByDesc(FileEntity::getLastAccessAt));
+    }
+
     public FileEntity getFile(Long id) {
         return fileMapper.selectById(id);
+    }
+
+    @Transactional
+    public void rename(Long id, String title) {
+        FileEntity file = fileMapper.selectById(id);
+        if (file == null) throw new RuntimeException("文件不存在");
+        if (!file.getOwnerEmail().equals(currentUserEmail())) throw new RuntimeException("无权操作");
+        file.setTitle(title);
+        fileMapper.updateById(file);
+    }
+
+    public void recordAccess(Long id) {
+        FileEntity file = fileMapper.selectById(id);
+        if (file != null) {
+            file.setLastAccessAt(LocalDateTime.now());
+            file.setLastAccessBy(currentUserEmail());
+            fileMapper.updateById(file);
+        }
     }
 
     @Transactional
@@ -137,6 +205,23 @@ public class FileService {
         }
         transferMapper.delete(new LambdaQueryWrapper<FileTransfer>().eq(FileTransfer::getFileId, id));
         fileMapper.deleteById(id);
+    }
+
+    @Transactional
+    public void batchDelete(List<Long> ids) {
+        String email = currentUserEmail();
+        for (Long id : ids) {
+            FileEntity file = fileMapper.selectById(id);
+            if (file == null || !file.getOwnerEmail().equals(email)) continue;
+            try { fileUtil.deleteFile(Path.of(file.getStoragePath())); } catch (IOException ignored) {}
+            User owner = userMapper.selectById(file.getOwnerEmail());
+            if (owner != null) {
+                owner.setStorageUsed(Math.max(0, owner.getStorageUsed() - file.getFileSize()));
+                userMapper.updateById(owner);
+            }
+            transferMapper.delete(new LambdaQueryWrapper<FileTransfer>().eq(FileTransfer::getFileId, id));
+            fileMapper.deleteById(id);
+        }
     }
 
     @Transactional
@@ -171,5 +256,19 @@ public class FileService {
             return Files.newInputStream(Path.of(file.getStoragePath()));
         }
         throw new RuntimeException("无权下载此文件");
+    }
+
+    private String detectFileType(String mimeType) {
+        if (mimeType == null) return "OTHER";
+        if (mimeType.startsWith("image/")) return "IMAGE";
+        if (mimeType.startsWith("video/")) return "VIDEO";
+        if (mimeType.contains("pdf") || mimeType.contains("word")
+            || mimeType.contains("document") || mimeType.contains("text")
+            || mimeType.contains("excel") || mimeType.contains("spreadsheet")
+            || mimeType.contains("presentation")) return "DOCUMENT";
+        if (mimeType.contains("zip") || mimeType.contains("rar")
+            || mimeType.contains("tar") || mimeType.contains("gzip")
+            || mimeType.contains("7z")) return "ARCHIVE";
+        return "OTHER";
     }
 }
