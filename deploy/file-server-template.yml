@@ -1,0 +1,13 @@
+# ==========================================
+# MyWeb 文件服务器配置模板（部署在本地虚拟机）
+# 启动命令：
+# java -Xmx256m -Xms128m -jar myweb-file-server-0.1.0.jar --spring.config.location=/home/myweb/file-server.yml
+# ==========================================
+
+server:
+  port: 18080                                          # 文件服务器端口
+
+app:
+  storage-path: /mnt/myweb-files/                      # 文件存储路径（大磁盘目录）
+  upload-tmp-path: /tmp/myweb-uploads/                  # 临时分片目录
+  auth-token: myweb-file-server-secret-token            # 与云服务器保持一致

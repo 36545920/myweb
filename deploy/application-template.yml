@@ -1,0 +1,58 @@
+# ==========================================
+# MyWeb 部署配置模板
+# 复制此文件到服务器，修改占位符后使用
+# 启动命令：
+# java -Xmx512m -Xms256m -jar myweb-backend-0.1.0.jar --spring.config.location=/home/myweb/application.yml
+# ==========================================
+
+server:
+  port: 10888                                          # 后端端口
+  servlet:
+    context-path: /api/v1
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/myweb?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 【填你的 MySQL 密码】                        # 数据库密码
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 【填你的 QQ 邮箱全地址，如 123456789@qq.com】 # 发送验证码的邮箱
+    password: 【填 QQ 邮箱 SMTP 授权码，不是密码】          # https://service.mail.qq.com → 生成授权码
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  servlet:
+    multipart:
+      max-file-size: -1                                 # 不限制上传大小
+      max-request-size: -1
+
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: 【填一个长随机字符串，至少 32 字符】              # 比如用 uuidgen 生成
+  access-token-expiration: 86400000                     # 24 小时
+  refresh-token-expiration: 604800000                   # 7 天
+
+# ========== 应用配置 ==========
+app:
+  upload-tmp-path: /tmp/myweb-uploads/                  # 上传临时分片目录（云端本地）
+  email-verification-code-expiration: 300               # 验证码有效期（秒）
+
+  # 文件服务器配置（本地虚拟机通过 NPS 穿透后访问）
+  file-server:
+    url: http://127.0.0.1:18080                         # NPS 穿透端口，在云服务器本机回环
+    auth-token: myweb-file-server-secret-token          # 与虚拟机文件服务器配置保持一致
