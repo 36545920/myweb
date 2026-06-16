@@ -25,7 +25,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/auth/**", "/health").permitAll()
                 .requestMatchers("/users/me/**", "/users/search/**").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/upload/**", "/files/**").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/transfers/**").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")

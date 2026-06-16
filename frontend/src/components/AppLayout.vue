@@ -5,6 +5,9 @@
       <header class="top-header">
         <span class="header-title">{{ pageTitle }}</span>
       </header>
+      <div v-if="!nasOnline" class="nas-warning">
+        ⚠ 文件存储服务器离线中，上传和下载功能暂不可用。共享池文件仅可查看记录。
+      </div>
       <div class="content-inner">
         <router-view />
       </div>
@@ -13,9 +16,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
+import axios from 'axios'
 
 const route = useRoute()
 
@@ -36,6 +40,25 @@ const pageTitle = computed(() => {
   const name = route.name as string
   return pageTitles[name] || name || ''
 })
+
+// NAS 健康检查
+const nasOnline = ref(true)
+let healthTimer: any = null
+
+async function checkHealth() {
+  try {
+    const res: any = await axios.get('/api/v1/health')
+    nasOnline.value = res.data?.nas ?? true
+  } catch {
+    nasOnline.value = false
+  }
+}
+
+onMounted(() => {
+  checkHealth()
+  healthTimer = setInterval(checkHealth, 30000)
+})
+onUnmounted(() => { clearInterval(healthTimer) })
 </script>
 
 <style>
@@ -127,5 +150,10 @@ h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 12px;
   color: var(--text-secondary);
 }
 
+.nas-warning {
+  background: #fef0e0; color: #b87b3a; text-align: center;
+  padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #f0d4a0;
+  flex-shrink: 0;
+}
 .content-inner { padding: 28px 40px; flex: 1; width: 100%; }
 </style>
