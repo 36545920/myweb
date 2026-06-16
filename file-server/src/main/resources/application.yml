@@ -1,0 +1,7 @@
+server:
+  port: 18080
+
+app:
+  storage-path: /mnt/myweb-files/
+  upload-tmp-path: /tmp/myweb-uploads/
+  auth-token: myweb-file-server-secret-token

@@ -45,3 +45,6 @@ app:
   email-verification-code-expiration: 300
   avatar-path: /mnt/nas/myweb-files/avatars/
   avatar-max-size: 2097152
+  file-server:
+    url: http://127.0.0.1:18080
+    auth-token: myweb-file-server-secret-token

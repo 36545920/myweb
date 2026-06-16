@@ -241,7 +241,7 @@ public class FileService {
         if (file == null) throw new RuntimeException("文件不存在");
 
         if (file.getOwnerEmail().equals(email)) {
-            return Files.newInputStream(Path.of(file.getStoragePath()));
+            return fileUtil.downloadFromServer(file.getStoragePath());
         }
 
         Long transferCount = transferMapper.selectCount(
@@ -249,11 +249,11 @@ public class FileService {
                 .eq(FileTransfer::getFileId, id)
                 .eq(FileTransfer::getToEmail, email));
         if (transferCount > 0) {
-            return Files.newInputStream(Path.of(file.getStoragePath()));
+            return fileUtil.downloadFromServer(file.getStoragePath());
         }
 
         if (file.getIsSharedPool() && "APPROVED".equals(file.getReviewStatus())) {
-            return Files.newInputStream(Path.of(file.getStoragePath()));
+            return fileUtil.downloadFromServer(file.getStoragePath());
         }
         throw new RuntimeException("无权下载此文件");
     }
